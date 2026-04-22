@@ -10,7 +10,7 @@ use ruff_text_size::{Ranged, TextRange};
 
 use crate::checkers::ast::Checker;
 use crate::codes::Category;
-use crate::{Edit, Fix, FixAvailability, Violation};
+use crate::{Applicability, Edit, Fix, FixAvailability, Violation};
 
 use ruff_python_ast::PythonVersion;
 
@@ -137,7 +137,29 @@ impl From<PythonVersion> for ConversionType {
 }
 
 /// Generate a [`Fix`] for the given [`Expr`] as per the [`ConversionType`].
-fn generate_fix(checker: &Checker, conversion_type: ConversionType, expr: &Expr) -> Result<Fix> {
+fn generate_fix(
+    checker: &Checker,
+    conversion_type: ConversionType,
+    expr: &Expr,
+) -> Result<(Expr, Vec<Edit>, Applicability)> {
+    if let Expr::BinOp(ast::ExprBinOp {
+        left,
+        op: Operator::MatMult,
+        right,
+        ..
+    }) = expr
+    {
+        let (inner_expr, edits, applicability) = generate_fix(checker, conversion_type, left)?;
+        let new_expr = Expr::BinOp(ast::ExprBinOp {
+            left: Box::new(inner_expr),
+            op: Operator::MatMult,
+            right: right.clone(),
+            range: TextRange::default(),
+            node_index: ruff_python_ast::AtomicNodeIndex::NONE,
+        });
+        return Ok((new_expr, edits, applicability));
+    }
+
     match conversion_type {
         ConversionType::BinOpOr => {
             let new_expr = Expr::BinOp(ast::ExprBinOp {
@@ -147,16 +169,7 @@ fn generate_fix(checker: &Checker, conversion_type: ConversionType, expr: &Expr)
                 range: TextRange::default(),
                 node_index: ruff_python_ast::AtomicNodeIndex::NONE,
             });
-            let content = checker.generator().expr(&new_expr);
-            let edit = Edit::range_replacement(content, expr.range());
-            if checker.target_version() < PythonVersion::PY310 {
-                Ok(Fix::unsafe_edits(
-                    edit,
-                    [checker.importer().add_future_import()],
-                ))
-            } else {
-                Ok(Fix::unsafe_edit(edit))
-            }
+            Ok((new_expr, vec![], Applicability::Unsafe))
         }
         ConversionType::Optional => {
             let importer = checker
@@ -168,18 +181,14 @@ fn generate_fix(checker: &Checker, conversion_type: ConversionType, expr: &Expr)
                 node_index: ruff_python_ast::AtomicNodeIndex::NONE,
                 value: Box::new(Expr::Name(ast::ExprName {
                     id: Name::new(binding),
-                    ctx: ast::ExprContext::Store,
+                    ctx: ast::ExprContext::Load,
                     range: TextRange::default(),
                     node_index: ruff_python_ast::AtomicNodeIndex::NONE,
                 })),
                 slice: Box::new(expr.clone()),
                 ctx: ast::ExprContext::Load,
             });
-            let content = checker.generator().expr(&new_expr);
-            Ok(Fix::unsafe_edits(
-                Edit::range_replacement(content, expr.range()),
-                [import_edit],
-            ))
+            Ok((new_expr, vec![import_edit], Applicability::Unsafe))
         }
     }
 }
@@ -210,7 +219,24 @@ pub(crate) fn implicit_optional(checker: &Checker, parameters: &Parameters) {
                 let mut diagnostic =
                     checker.report_diagnostic(ImplicitOptional { conversion_type }, expr.range());
                 if parsed_annotation.kind().is_simple() {
-                    diagnostic.try_set_fix(|| generate_fix(checker, conversion_type, expr));
+                    diagnostic.try_set_fix(|| {
+                        let (new_expr, mut edits, applicability) =
+                            generate_fix(checker, conversion_type, expr)?;
+                        let content = checker.generator().expr(&new_expr);
+                        let edit = Edit::range_replacement(content, expr.range());
+                        edits.insert(0, edit);
+                        if matches!(conversion_type, ConversionType::BinOpOr)
+                            && checker.target_version() < PythonVersion::PY310
+                        {
+                            edits.push(checker.importer().add_future_import());
+                        }
+                        let (first, rest) = edits.split_first().unwrap();
+                        Ok(Fix::applicable_edits(
+                            first.clone(),
+                            rest.iter().cloned(),
+                            applicability,
+                        ))
+                    });
                 }
             }
         } else {
@@ -231,7 +257,24 @@ pub(crate) fn implicit_optional(checker: &Checker, parameters: &Parameters) {
 
             let mut diagnostic =
                 checker.report_diagnostic(ImplicitOptional { conversion_type }, expr.range());
-            diagnostic.try_set_fix(|| generate_fix(checker, conversion_type, expr));
+            diagnostic.try_set_fix(|| {
+                let (new_expr, mut edits, applicability) =
+                    generate_fix(checker, conversion_type, expr)?;
+                let content = checker.generator().expr(&new_expr);
+                let edit = Edit::range_replacement(content, expr.range());
+                edits.insert(0, edit);
+                if matches!(conversion_type, ConversionType::BinOpOr)
+                    && checker.target_version() < PythonVersion::PY310
+                {
+                    edits.push(checker.importer().add_future_import());
+                }
+                let (first, rest) = edits.split_first().unwrap();
+                Ok(Fix::applicable_edits(
+                    first.clone(),
+                    rest.iter().cloned(),
+                    applicability,
+                ))
+            });
         }
     }
 }
