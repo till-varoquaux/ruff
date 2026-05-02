@@ -30,6 +30,7 @@ pub(crate) fn expression(expr: &Expr, checker: &Checker) {
                 Rule::FutureRewritableTypeAnnotation,
                 Rule::NonPEP604AnnotationUnion,
                 Rule::NonPEP604AnnotationOptional,
+                Rule::NonAnnotatedShorthand,
             ]) {
                 if let Some(operator) = typing::to_pep604_operator(value, slice, &checker.semantic)
                 {
@@ -58,6 +59,18 @@ pub(crate) fn expression(expr: &Expr, checker: &Checker) {
                                 && !checker.settings().pyupgrade.keep_runtime_typing)
                         {
                             pyupgrade::rules::non_pep604_annotation(checker, expr, slice, operator);
+                        }
+                    }
+                }
+
+                if checker.is_rule_enabled(Rule::NonAnnotatedShorthand) {
+                    if let Some(operator) =
+                        typing::to_annotated_shorthand_operator(value, slice, &checker.semantic)
+                    {
+                        if checker.source_type.is_stub()
+                            || checker.target_version() >= PythonVersion::PY316
+                        {
+                            pyupgrade::rules::non_annotated_shorthand(checker, expr, slice, operator);
                         }
                     }
                 }

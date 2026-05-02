@@ -1,0 +1,349 @@
+---
+source: crates/ruff_linter/src/rules/pyupgrade/mod.rs
+---
+UP051 [*] Use `T @ M` for type annotations
+ --> UP051.py:4:4
+  |
+2 | from typing import Annotated
+3 |
+4 | x: Annotated[int, "metadata"]
+  |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 | y: Annotated[str, 123]
+  |
+help: Convert to `T @ M`
+1 | from __future__ import annotations
+2 | from typing import Annotated
+3 |
+  - x: Annotated[int, "metadata"]
+4 + x: int @ "metadata"
+5 | y: Annotated[str, 123]
+6 |
+7 | z: Annotated[float, "a", "b", "c"]
+
+UP051 [*] Use `T @ M` for type annotations
+ --> UP051.py:5:4
+  |
+4 | x: Annotated[int, "metadata"]
+5 | y: Annotated[str, 123]
+  |    ^^^^^^^^^^^^^^^^^^^
+6 |
+7 | z: Annotated[float, "a", "b", "c"]
+  |
+help: Convert to `T @ M`
+2 | from typing import Annotated
+3 |
+4 | x: Annotated[int, "metadata"]
+  - y: Annotated[str, 123]
+5 + y: str @ 123
+6 |
+7 | z: Annotated[float, "a", "b", "c"]
+8 |
+
+UP051 [*] Use `T @ M` for type annotations
+ --> UP051.py:7:4
+  |
+5 | y: Annotated[str, 123]
+6 |
+7 | z: Annotated[float, "a", "b", "c"]
+  |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8 |
+9 | a: Annotated[Annotated[int, "inner"], "outer"]
+  |
+help: Convert to `T @ M`
+4  | x: Annotated[int, "metadata"]
+5  | y: Annotated[str, 123]
+6  |
+   - z: Annotated[float, "a", "b", "c"]
+7  + z: float @ "a" @ "b" @ "c"
+8  |
+9  | a: Annotated[Annotated[int, "inner"], "outer"]
+10 |
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:9:4
+   |
+ 7 | z: Annotated[float, "a", "b", "c"]
+ 8 |
+ 9 | a: Annotated[Annotated[int, "inner"], "outer"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 |
+11 | b: Annotated[list[int], "list"]
+   |
+help: Convert to `T @ M`
+6  |
+7  | z: Annotated[float, "a", "b", "c"]
+8  |
+   - a: Annotated[Annotated[int, "inner"], "outer"]
+9  + a: int @ "inner" @ "outer"
+10 |
+11 | b: Annotated[list[int], "list"]
+12 | c: Annotated[dict[str, int], "dict"]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:11:4
+   |
+ 9 | a: Annotated[Annotated[int, "inner"], "outer"]
+10 |
+11 | b: Annotated[list[int], "list"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 | c: Annotated[dict[str, int], "dict"]
+   |
+help: Convert to `T @ M`
+8  |
+9  | a: Annotated[Annotated[int, "inner"], "outer"]
+10 |
+   - b: Annotated[list[int], "list"]
+11 + b: list[int] @ "list"
+12 | c: Annotated[dict[str, int], "dict"]
+13 |
+14 | from typing_extensions import Annotated as AnnotatedExt
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:12:4
+   |
+11 | b: Annotated[list[int], "list"]
+12 | c: Annotated[dict[str, int], "dict"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+13 |
+14 | from typing_extensions import Annotated as AnnotatedExt
+   |
+help: Convert to `T @ M`
+9  | a: Annotated[Annotated[int, "inner"], "outer"]
+10 |
+11 | b: Annotated[list[int], "list"]
+   - c: Annotated[dict[str, int], "dict"]
+12 + c: dict[str, int] @ "dict"
+13 |
+14 | from typing_extensions import Annotated as AnnotatedExt
+15 | d: AnnotatedExt[int, "ext"]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:15:4
+   |
+14 | from typing_extensions import Annotated as AnnotatedExt
+15 | d: AnnotatedExt[int, "ext"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^
+16 |
+17 | def f(arg: Annotated[int, "arg"]):
+   |
+help: Convert to `T @ M`
+12 | c: Annotated[dict[str, int], "dict"]
+13 |
+14 | from typing_extensions import Annotated as AnnotatedExt
+   - d: AnnotatedExt[int, "ext"]
+15 + d: int @ "ext"
+16 |
+17 | def f(arg: Annotated[int, "arg"]):
+18 |     pass
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:17:12
+   |
+15 | d: AnnotatedExt[int, "ext"]
+16 |
+17 | def f(arg: Annotated[int, "arg"]):
+   |            ^^^^^^^^^^^^^^^^^^^^^
+18 |     pass
+   |
+help: Convert to `T @ M`
+14 | from typing_extensions import Annotated as AnnotatedExt
+15 | d: AnnotatedExt[int, "ext"]
+16 |
+   - def f(arg: Annotated[int, "arg"]):
+17 + def f(arg: int @ "arg"):
+18 |     pass
+19 |
+20 | TypeAlias = Annotated[int, "alias"]
+
+UP051 Use `T @ M` for type annotations
+  --> UP051.py:20:13
+   |
+18 |     pass
+19 |
+20 | TypeAlias = Annotated[int, "alias"]
+   |             ^^^^^^^^^^^^^^^^^^^^^^^
+21 |
+22 | e: Annotated[int, "quoted 'metadata'"]
+   |
+help: Convert to `T @ M`
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:22:4
+   |
+20 | TypeAlias = Annotated[int, "alias"]
+21 |
+22 | e: Annotated[int, "quoted 'metadata'"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+23 |
+24 | f: Annotated[int, {"key": "value"}]
+   |
+help: Convert to `T @ M`
+19 |
+20 | TypeAlias = Annotated[int, "alias"]
+21 |
+   - e: Annotated[int, "quoted 'metadata'"]
+22 + e: int @ "quoted 'metadata'"
+23 |
+24 | f: Annotated[int, {"key": "value"}]
+25 |
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:24:4
+   |
+22 | e: Annotated[int, "quoted 'metadata'"]
+23 |
+24 | f: Annotated[int, {"key": "value"}]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+25 |
+26 | g: Annotated["int", "metadata"]
+   |
+help: Convert to `T @ M`
+21 |
+22 | e: Annotated[int, "quoted 'metadata'"]
+23 |
+   - f: Annotated[int, {"key": "value"}]
+24 + f: int @ {"key": "value"}
+25 |
+26 | g: Annotated["int", "metadata"]
+27 | h: Annotated["List[int]", 123]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:29:4
+   |
+27 | h: Annotated["List[int]", 123]
+28 |
+29 | i: Annotated[int | str, "metadata"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+30 | j: Annotated[int | float | None, "m1", "m2"]
+   |
+help: Convert to `T @ M`
+26 | g: Annotated["int", "metadata"]
+27 | h: Annotated["List[int]", 123]
+28 |
+   - i: Annotated[int | str, "metadata"]
+29 + i: (int | str) @ "metadata"
+30 | j: Annotated[int | float | None, "m1", "m2"]
+31 |
+32 | k: Annotated[list[int] | dict[str, int], "m"]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:30:4
+   |
+29 | i: Annotated[int | str, "metadata"]
+30 | j: Annotated[int | float | None, "m1", "m2"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+31 |
+32 | k: Annotated[list[int] | dict[str, int], "m"]
+   |
+help: Convert to `T @ M`
+27 | h: Annotated["List[int]", 123]
+28 |
+29 | i: Annotated[int | str, "metadata"]
+   - j: Annotated[int | float | None, "m1", "m2"]
+30 + j: (int | float | None) @ "m1" @ "m2"
+31 |
+32 | k: Annotated[list[int] | dict[str, int], "m"]
+33 |
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:32:4
+   |
+30 | j: Annotated[int | float | None, "m1", "m2"]
+31 |
+32 | k: Annotated[list[int] | dict[str, int], "m"]
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |
+34 | l: list[Annotated[int, "metadata"]]
+   |
+help: Convert to `T @ M`
+29 | i: Annotated[int | str, "metadata"]
+30 | j: Annotated[int | float | None, "m1", "m2"]
+31 |
+   - k: Annotated[list[int] | dict[str, int], "m"]
+32 + k: (list[int] | dict[str, int]) @ "m"
+33 |
+34 | l: list[Annotated[int, "metadata"]]
+35 | m: dict[str, Annotated[float, "m"]]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:34:9
+   |
+32 | k: Annotated[list[int] | dict[str, int], "m"]
+33 |
+34 | l: list[Annotated[int, "metadata"]]
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+35 | m: dict[str, Annotated[float, "m"]]
+   |
+help: Convert to `T @ M`
+31 |
+32 | k: Annotated[list[int] | dict[str, int], "m"]
+33 |
+   - l: list[Annotated[int, "metadata"]]
+34 + l: list[int @ "metadata"]
+35 | m: dict[str, Annotated[float, "m"]]
+36 |
+37 | n: int | Annotated[float, "metadata"]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:35:14
+   |
+34 | l: list[Annotated[int, "metadata"]]
+35 | m: dict[str, Annotated[float, "m"]]
+   |              ^^^^^^^^^^^^^^^^^^^^^
+36 |
+37 | n: int | Annotated[float, "metadata"]
+   |
+help: Convert to `T @ M`
+32 | k: Annotated[list[int] | dict[str, int], "m"]
+33 |
+34 | l: list[Annotated[int, "metadata"]]
+   - m: dict[str, Annotated[float, "m"]]
+35 + m: dict[str, float @ "m"]
+36 |
+37 | n: int | Annotated[float, "metadata"]
+38 | o: Annotated[int, "m1"] | Annotated[str, "m2"]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:37:10
+   |
+35 | m: dict[str, Annotated[float, "m"]]
+36 |
+37 | n: int | Annotated[float, "metadata"]
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+38 | o: Annotated[int, "m1"] | Annotated[str, "m2"]
+   |
+help: Convert to `T @ M`
+34 | l: list[Annotated[int, "metadata"]]
+35 | m: dict[str, Annotated[float, "m"]]
+36 |
+   - n: int | Annotated[float, "metadata"]
+37 + n: int | float @ "metadata"
+38 | o: Annotated[int, "m1"] | Annotated[str, "m2"]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:38:4
+   |
+37 | n: int | Annotated[float, "metadata"]
+38 | o: Annotated[int, "m1"] | Annotated[str, "m2"]
+   |    ^^^^^^^^^^^^^^^^^^^^
+   |
+help: Convert to `T @ M`
+35 | m: dict[str, Annotated[float, "m"]]
+36 |
+37 | n: int | Annotated[float, "metadata"]
+   - o: Annotated[int, "m1"] | Annotated[str, "m2"]
+38 + o: int @ "m1" | Annotated[str, "m2"]
+
+UP051 [*] Use `T @ M` for type annotations
+  --> UP051.py:38:27
+   |
+37 | n: int | Annotated[float, "metadata"]
+38 | o: Annotated[int, "m1"] | Annotated[str, "m2"]
+   |                           ^^^^^^^^^^^^^^^^^^^^
+   |
+help: Convert to `T @ M`
+35 | m: dict[str, Annotated[float, "m"]]
+36 |
+37 | n: int | Annotated[float, "metadata"]
+   - o: Annotated[int, "m1"] | Annotated[str, "m2"]
+38 + o: Annotated[int, "m1"] | str @ "m2"

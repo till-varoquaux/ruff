@@ -128,6 +128,20 @@ mod tests {
         Ok(())
     }
 
+    #[test_case(Rule::NonAnnotatedShorthand, Path::new("UP051.py"))]
+    fn rules_py316(rule_code: Rule, path: &Path) -> Result<()> {
+        let snapshot = path.to_string_lossy().to_string();
+        let diagnostics = test_path(
+            Path::new("pyupgrade").join(path).as_path(),
+            &settings::LinterSettings {
+                unresolved_target_version: PythonVersion::PY316.into(),
+                ..settings::LinterSettings::for_rule(rule_code)
+            },
+        )?;
+        assert_diagnostics!(snapshot, diagnostics);
+        Ok(())
+    }
+
     /// Test that enabling preview switches from `FA100` to `UP006` when `future-annotations` is on.
     #[test]
     fn up006_preview_with_fa100() -> Result<()> {
