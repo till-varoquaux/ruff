@@ -41,7 +41,7 @@ use ruff_python_ast::visitor::{Visitor, walk_except_handler, walk_pattern};
 use ruff_python_ast::{
     self as ast, AnyParameterRef, ArgOrKeyword, Comprehension, ElifElseClause, ExceptHandler, Expr,
     ExprContext, ExprFString, ExprTString, InterpolatedStringElement, Keyword, MatchCase,
-    ModModule, Parameter, Parameters, Pattern, PythonVersion, Stmt, Suite, UnaryOp,
+    ModModule, Operator, Parameter, Parameters, Pattern, PythonVersion, Stmt, Suite, UnaryOp,
 };
 use ruff_python_ast::{PySourceType, helpers, str, visitor};
 use ruff_python_codegen::{Generator, Stylist};
@@ -2095,6 +2095,19 @@ impl<'a> Visitor<'a> for Checker<'a> {
                             self.visit_non_type_definition(value);
                         }
                     }
+                }
+            }
+            Expr::BinOp(ast::ExprBinOp {
+                left,
+                op: Operator::MatMult,
+                right,
+                ..
+            }) => {
+                if self.semantic.in_type_definition() {
+                    self.visit_type_definition(left);
+                    self.visit_non_type_definition(right);
+                } else {
+                    visitor::walk_expr(self, expr);
                 }
             }
             Expr::Subscript(ast::ExprSubscript {

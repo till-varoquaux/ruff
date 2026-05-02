@@ -47,6 +47,9 @@ enum TypingTarget<'a> {
     /// A PEP 604 union type e.g., `int | str`.
     PEP604Union(&'a Expr, &'a Expr),
 
+    /// An annotated shorthand type e.g., `int @ Metadata`.
+    AnnotatedShorthand(&'a Expr),
+
     /// A `typing.Literal` type e.g., `Literal[1, 2, 3]`.
     Literal(Option<&'a Expr>),
 
@@ -110,6 +113,11 @@ impl<'a> TypingTarget<'a> {
                 right,
                 ..
             }) => Some(TypingTarget::PEP604Union(left, right)),
+            Expr::BinOp(ast::ExprBinOp {
+                left,
+                op: Operator::MatMult,
+                ..
+            }) => Some(TypingTarget::AnnotatedShorthand(left)),
             Expr::NoneLiteral(_) => Some(TypingTarget::None),
             Expr::StringLiteral(string_expr) => checker
                 .parse_type_annotation(string_expr)
@@ -198,6 +206,10 @@ impl<'a> TypingTarget<'a> {
                 TypingTarget::try_from_expr(expr, checker, version)
                     .is_none_or(|new_target| new_target.contains_none(checker, version))
             }),
+            TypingTarget::AnnotatedShorthand(expr) => {
+                TypingTarget::try_from_expr(expr, checker, version)
+                    .is_none_or(|new_target| new_target.contains_none(checker, version))
+            }
             TypingTarget::ForwardReference(expr) => {
                 TypingTarget::try_from_expr(expr, checker, version)
                     .is_none_or(|new_target| new_target.contains_none(checker, version))
@@ -232,6 +244,10 @@ impl<'a> TypingTarget<'a> {
                         .is_none_or(|new_target| new_target.contains_any(checker, version))
                 })
             }
+            TypingTarget::AnnotatedShorthand(expr) => {
+                TypingTarget::try_from_expr(expr, checker, version)
+                    .is_none_or(|new_target| new_target.contains_any(checker, version))
+            }
             TypingTarget::ForwardReference(expr) => {
                 TypingTarget::try_from_expr(expr, checker, version)
                     .is_none_or(|new_target| new_target.contains_any(checker, version))
@@ -263,6 +279,13 @@ pub(crate) fn type_hint_explicitly_allows_none<'a>(
         Some(TypingTarget::Annotated(expr)) => {
             expr.and_then(|expr| type_hint_explicitly_allows_none(expr, checker, version))
         }
+        Some(TypingTarget::AnnotatedShorthand(expr)) => {
+            if type_hint_explicitly_allows_none(expr, checker, version).is_none() {
+                None
+            } else {
+                Some(annotation)
+            }
+        }
         Some(target) => {
             if target.contains_none(checker, version) {
                 return None;
@@ -289,6 +312,9 @@ pub(crate) fn type_hint_resolves_to_any(
         // to `Any`.
         Some(TypingTarget::Annotated(expr)) => {
             expr.is_some_and(|expr| type_hint_resolves_to_any(expr, checker, version))
+        }
+        Some(TypingTarget::AnnotatedShorthand(expr)) => {
+            type_hint_resolves_to_any(expr, checker, version)
         }
         Some(target) => target.contains_any(checker, version),
     }

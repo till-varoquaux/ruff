@@ -198,6 +198,12 @@ pub enum Pep604Operator {
     Optional,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum AnnotatedShorthandOperator {
+    /// The annotated operator, e.g., `Annotated[str, int]`, expressible as `str @ int`.
+    Annotated,
+}
+
 /// Return the PEP 604 operator variant to which the given subscript [`Expr`] corresponds, if any.
 pub fn to_pep604_operator(
     value: &Expr,
@@ -269,6 +275,30 @@ pub fn to_pep604_operator(
         })
 }
 
+/// Return the annotated shorthand operator variant to which the given subscript [`Expr`]
+/// corresponds, if any.
+pub fn to_annotated_shorthand_operator(
+    value: &Expr,
+    _slice: &Expr,
+    semantic: &SemanticModel,
+) -> Option<AnnotatedShorthandOperator> {
+    // If the typing modules were never imported, we'll never match below.
+    if !semantic.seen_typing() {
+        return None;
+    }
+
+    semantic
+        .resolve_qualified_name(value)
+        .as_ref()
+        .and_then(|qualified_name| {
+            if semantic.match_typing_qualified_name(qualified_name, "Annotated") {
+                Some(AnnotatedShorthandOperator::Annotated)
+            } else {
+                None
+            }
+        })
+}
+
 /// Return `true` if `Expr` represents a reference to a type annotation that resolves to an
 /// immutable type.
 pub fn is_immutable_annotation(
@@ -323,8 +353,73 @@ pub fn is_immutable_annotation(
             is_immutable_annotation(left, semantic, extend_immutable_calls)
                 && is_immutable_annotation(right, semantic, extend_immutable_calls)
         }
+        Expr::BinOp(ast::ExprBinOp {
+            left,
+            op: Operator::MatMult,
+            ..
+        }) => is_immutable_annotation(left, semantic, extend_immutable_calls),
         Expr::NoneLiteral(_) => true,
         _ => false,
+    }
+}
+
+/// Recursively collect all the types and metadata from an `Annotated` expression
+/// (both standard `Annotated[...]` and the `@` shorthand).
+pub fn collect_annotated_elements<'a>(
+    expr: &'a Expr,
+    semantic: &SemanticModel,
+    elements: &mut Vec<&'a Expr>,
+) {
+    match expr {
+        Expr::Subscript(ast::ExprSubscript { value, slice, .. }) => {
+            if semantic.match_typing_expr(value, "Annotated") {
+                let elts = match slice.as_ref() {
+                    Expr::Tuple(ast::ExprTuple { elts, .. }) => elts.as_slice(),
+                    _ => std::slice::from_ref(slice.as_ref()),
+                };
+                if let Some((first, rest)) = elts.split_first() {
+                    collect_annotated_elements(first, semantic, elements);
+                    elements.extend(rest);
+                    return;
+                }
+            }
+        }
+        Expr::BinOp(ast::ExprBinOp {
+            left,
+            op: Operator::MatMult,
+            right,
+            ..
+        }) => {
+            collect_annotated_elements(left, semantic, elements);
+            elements.push(right);
+            return;
+        }
+        _ => {}
+    }
+    elements.push(expr);
+}
+
+/// See through `Annotated` and the `@` shorthand to return the underlying type.
+pub fn unwrap_annotation<'a>(expr: &'a Expr, semantic: &SemanticModel) -> &'a Expr {
+    match expr {
+        Expr::Subscript(ast::ExprSubscript { value, slice, .. }) => {
+            if semantic.match_typing_expr(value, "Annotated") {
+                let elts = match slice.as_ref() {
+                    Expr::Tuple(ast::ExprTuple { elts, .. }) => elts.as_slice(),
+                    _ => std::slice::from_ref(slice.as_ref()),
+                };
+                if let Some(first) = elts.first() {
+                    return unwrap_annotation(first, semantic);
+                }
+            }
+            expr
+        }
+        Expr::BinOp(ast::ExprBinOp {
+            left,
+            op: Operator::MatMult,
+            ..
+        }) => unwrap_annotation(left, semantic),
+        _ => expr,
     }
 }
 

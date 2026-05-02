@@ -39,6 +39,10 @@ impl PythonVersion {
         major: 3,
         minor: 15,
     };
+    pub const PY316: PythonVersion = PythonVersion {
+        major: 3,
+        minor: 16,
+    };
 
     pub fn iter() -> impl Iterator<Item = PythonVersion> {
         [
@@ -51,6 +55,7 @@ impl PythonVersion {
             PythonVersion::PY313,
             PythonVersion::PY314,
             PythonVersion::PY315,
+            PythonVersion::PY316,
         ]
         .into_iter()
     }
